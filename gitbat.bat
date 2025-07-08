@@ -9,3 +9,5 @@ git remote add origin https://github.com/goldshoot0720/goldshoot0720npxcreatenex
 git checkout -b master
 
 git push -u origin master --force
+
+pause
