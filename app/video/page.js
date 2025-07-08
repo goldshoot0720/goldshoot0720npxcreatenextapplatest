@@ -1,4 +1,6 @@
+"use client";
 import React from "react";
+export const runtime = "edge";
 
 export default async function VideoPage() {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";

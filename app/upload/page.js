@@ -13,7 +13,7 @@ export default function UploadVideoPage() {
   const [song, setSong] = useState("");
   const [type, setType] = useState("");
   const [year, setYear] = useState(2025);
-  const [season, setSeason] = useState("");
+  const [season, setSeason] = useState("spring");
   const [date, setDate] = useState("");
   const [site, setSite] = useState("");
   const [watch, setWatch] = useState("");
@@ -48,7 +48,7 @@ export default function UploadVideoPage() {
       const videoUrl = await uploadFile(videoFile);
 
       // 新增文件到資料庫
-      await databases.createDocument(DATABASE_ID, COLLECTION_ID, "unique()", {
+      await databases.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), {
         name,
         img: imgUrl,
         url: videoUrl,

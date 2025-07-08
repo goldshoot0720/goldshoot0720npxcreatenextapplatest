@@ -1,7 +1,7 @@
 // app/server/api/video/route.js
 import { NextResponse } from "next/server";
 import { Client, Databases } from "appwrite";
-
+export const runtime = "edge";
 const client = new Client();
 
 client
