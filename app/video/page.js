@@ -14,6 +14,7 @@ export default function VideoPage() {
 
   useEffect(() => {
     const fetchVideos = async () => {
+      console.log(baseUrl);
       const res = await fetch(`${baseUrl}/api/video`, { cache: "no-store" });
       const data = await res.json();
       setVideos(data);
