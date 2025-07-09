@@ -15,9 +15,22 @@ const collectionId = "686beea30020d8ea151f"; // ✅ 你提供的 collection ID
 export async function GET() {
   try {
     const response = await databases.listDocuments(databaseId, collectionId);
-    return NextResponse.json(response.documents);
+    return new NextResponse(JSON.stringify(response.documents), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*", // 或指定來源
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
+    });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return new NextResponse(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: {
+        "Access-Control-Allow-Origin": "*", // 同樣加入
+      },
+    });
   }
 }
 
@@ -42,23 +55,33 @@ export async function POST(req) {
       databaseId,
       collectionId,
       "unique()",
-      {
-        name,
-        url,
-        img,
-        type,
-        date,
-        song,
-        site,
-        watch,
-        youtube,
-        year,
-        season,
-      }
+      { name, url, img, type, date, song, site, watch, youtube, year, season }
     );
 
-    return NextResponse.json(document, { status: 201 });
+    return new NextResponse(JSON.stringify(document), {
+      status: 201,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return new NextResponse(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    },
+  });
 }
