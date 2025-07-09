@@ -94,10 +94,8 @@ export default function VideoPage() {
           }}
         >
           <option value="">所有類型</option>
-          <option value="OP">OP 映像</option>
-          <option value="ED">ED 映像</option>
-          <option value="オープニング">オープニング</option>
-          <option value="エンディング">エンディング</option>
+          <option value="OP">OP</option>
+          <option value="ED">ED</option>
         </select>
         <select
           value={yearFilter}
