@@ -1,141 +1,184 @@
 "use client";
-import React from "react";
-export const runtime = "edge";
+import React, { useState, useEffect } from "react";
 
-export default async function VideoPage() {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-  const res = await fetch(`${baseUrl}/api/video`, { cache: "no-store" });
-  const videos = await res.json();
+export default function VideoPage() {
+  const [videos, setVideos] = useState([]);
+  const [showUrl, setShowUrl] = useState(false);
+
+  useEffect(() => {
+    const fetchVideos = async () => {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+      const res = await fetch(`${baseUrl}/api/video`, { cache: "no-store" });
+      const data = await res.json();
+      setVideos(data);
+    };
+
+    fetchVideos();
+  }, []);
 
   return (
-    <>
-      <style>{`
-        main {
-          max-width: 900px;
-          margin: 0 auto;
-          padding: 1.5rem;
-        }
-        h1 {
-          font-size: 2rem;
-          font-weight: bold;
-          margin-bottom: 1.5rem;
-        }
-        .grid {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 1.5rem;
-        }
-        @media(min-width: 600px) {
-          .grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
-        }
-        @media(min-width: 900px) {
-          .grid {
-            grid-template-columns: repeat(3, 1fr);
-          }
-        }
-        article {
-          border: 1px solid #ddd;
-          border-radius: 8px;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-          padding: 1rem;
-          display: flex;
-          flex-direction: column;
-          background: white;
-        }
-        img {
-          width: 100%;
-          max-height: 150px;
-          object-fit: cover;
-          border-radius: 6px;
-          margin-bottom: 0.75rem;
-          flex-shrink: 0;
-        }
-        h2 {
-          font-size: 1.125rem;
-          margin: 0 0 0.5rem 0;
-        }
-        p {
-          margin: 0 0 0.5rem 0;
-          color: #444;
-        }
-        .meta {
-          font-size: 0.8rem;
-          color: #666;
-          margin-bottom: 1rem;
-        }
-        .links {
-          margin-top: auto;
-          display: flex;
-          gap: 0.75rem;
-          flex-wrap: wrap;
-          font-size: 0.875rem;
-        }
-        .links a {
-          color: #0066cc;
-          text-decoration: underline;
-        }
-      `}</style>
+    <main
+      style={{
+        maxWidth: "1200px",
+        margin: "0 auto",
+        padding: "2rem",
+        fontFamily: "Segoe UI, sans-serif",
+      }}
+    >
+      <h1
+        style={{
+          fontSize: "2.25rem",
+          fontWeight: 700,
+          marginBottom: "2rem",
+          textAlign: "center",
+        }}
+      >
+        🎬 影片清單
+      </h1>
 
-      <main>
-        <h1>🎬 影片清單</h1>
+      {videos.length === 0 && (
+        <p
+          style={{
+            textAlign: "center",
+            fontStyle: "italic",
+            color: "#999",
+            fontSize: "1.125rem",
+          }}
+        >
+          目前沒有影片資料
+        </p>
+      )}
 
-        {videos.length === 0 && (
-          <p
-            style={{ textAlign: "center", fontStyle: "italic", color: "#888" }}
+      <div
+        style={{
+          display: "grid",
+          gap: "1.5rem",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+        }}
+      >
+        {videos.map((video) => (
+          <article
+            key={video.$id}
+            style={{
+              border: "1px solid #e5e7eb",
+              borderRadius: "12px",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+              padding: "1rem",
+              backgroundColor: "#fff",
+              display: "flex",
+              flexDirection: "column",
+              transition: "transform 0.2s",
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = "scale(1.02)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = "scale(1)";
+            }}
           >
-            目前沒有影片資料
-          </p>
-        )}
+            <img
+              src={video.img}
+              alt={video.name}
+              style={{
+                width: "100%",
+                height: "160px",
+                objectFit: "cover",
+                borderRadius: "8px",
+                marginBottom: "1rem",
+              }}
+            />
+            <h2
+              style={{
+                fontSize: "1.125rem",
+                fontWeight: 600,
+                marginBottom: "0.5rem",
+              }}
+            >
+              {video.name}
+            </h2>
+            <p style={{ marginBottom: "0.25rem", color: "#555" }}>
+              🎵 {video.song} - {video.type}
+            </p>
+            <p
+              style={{
+                fontSize: "0.875rem",
+                color: "#777",
+                marginBottom: "1rem",
+              }}
+            >
+              📅 {video.season} / {video.year}
+            </p>
 
-        <div className="grid">
-          {videos.map((video) => (
-            <article key={video.$id}>
-              <img
-                src={video.img}
-                alt={video.name}
-                loading="lazy"
-                decoding="async"
-              />
-              <h2>{video.name}</h2>
-              <p>
-                {video.song} - {video.type}
-              </p>
-              <p className="meta">
-                {video.season} / {video.year}
-              </p>
-              <div className="links">
-                {video.watch && (
-                  <a
-                    href={video.watch}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    觀看
-                  </a>
-                )}
-                {video.youtube && (
-                  <a
-                    href={video.youtube}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    YouTube
-                  </a>
-                )}
-                {video.url && (
-                  <video
-                    src={video.url}
-                    controls
-                    style={{ width: "100%", maxHeight: 150, borderRadius: 6 }}
-                  />
-                )}
-              </div>
-            </article>
-          ))}
+            <div
+              style={{
+                marginTop: "auto",
+                display: "flex",
+                gap: "0.75rem",
+                flexWrap: "wrap",
+              }}
+            >
+              {video.watch && (
+                <a
+                  href={video.watch}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#2563eb", textDecoration: "underline" }}
+                >
+                  🌐 觀看
+                </a>
+              )}
+              {video.youtube && (
+                <a
+                  href={video.youtube}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#dc2626", textDecoration: "underline" }}
+                >
+                  ▶ YouTube
+                </a>
+              )}
+              {showUrl && video.url && (
+                <video
+                  src={video.url}
+                  controls
+                  style={{
+                    width: "100%",
+                    maxHeight: 180,
+                    borderRadius: "6px",
+                    marginTop: "1rem",
+                  }}
+                />
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {videos.length > 0 && (
+        <div style={{ textAlign: "center", marginTop: "2rem" }}>
+          <button
+            onClick={() => setShowUrl((prev) => !prev)}
+            style={{
+              backgroundColor: "#4f46e5",
+              color: "white",
+              border: "none",
+              padding: "0.75rem 1.5rem",
+              borderRadius: "8px",
+              fontSize: "1rem",
+              cursor: "pointer",
+              transition: "background-color 0.2s",
+            }}
+            onMouseOver={(e) =>
+              (e.currentTarget.style.backgroundColor = "#4338ca")
+            }
+            onMouseOut={(e) =>
+              (e.currentTarget.style.backgroundColor = "#4f46e5")
+            }
+          >
+            {showUrl ? "🔒 隱藏內嵌影片" : "🎥 顯示內嵌影片"}
+          </button>
         </div>
-      </main>
-    </>
+      )}
+    </main>
   );
 }
