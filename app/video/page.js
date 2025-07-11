@@ -1,6 +1,8 @@
 "use client";
-import React, { useState, useEffect } from "react";
-
+import React, { useState, useEffect, useRef } from "react";
+import "plyr/dist/plyr.css";
+import dynamic from "next/dynamic";
+const Plyr = dynamic(() => import("plyr"), { ssr: false });
 export default function VideoPage() {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 
@@ -11,14 +13,23 @@ export default function VideoPage() {
   const [yearFilter, setYearFilter] = useState("");
   const [seasonFilter, setSeasonFilter] = useState("");
   const [showUrlId, setShowUrlId] = useState(null);
+  const [isLoading, setIsLoading] = useState(true); // ✅ loading 狀態
+
+  const videoRefs = useRef({});
 
   useEffect(() => {
     const fetchVideos = async () => {
-      console.log(baseUrl);
-      const res = await fetch(`${baseUrl}/api/video`, { cache: "no-store" });
-      const data = await res.json();
-      setVideos(data);
-      setFilteredVideos(data);
+      setIsLoading(true); // 開始載入
+      try {
+        const res = await fetch(`${baseUrl}/api/video`, { cache: "no-store" });
+        const data = await res.json();
+        setVideos(data);
+        setFilteredVideos(data);
+      } catch (err) {
+        console.error("載入影片失敗：", err);
+      } finally {
+        setIsLoading(false); // 完成載入
+      }
     };
     fetchVideos();
   }, []);
@@ -39,15 +50,25 @@ export default function VideoPage() {
     setFilteredVideos(filtered);
   }, [search, typeFilter, yearFilter, seasonFilter, videos]);
 
+  // 初始化 Plyr
+  useEffect(() => {
+    const el = videoRefs.current[showUrlId];
+    if (showUrlId && el) {
+      const timeout = setTimeout(() => {
+        try {
+          new Plyr(el, {
+            controls: ["play", "progress", "mute", "volume", "fullscreen"],
+          });
+        } catch (err) {
+          console.error("Plyr 初始化失敗:", err);
+        }
+      }, 0);
+      return () => clearTimeout(timeout);
+    }
+  }, [showUrlId]);
+
   return (
-    <main
-      style={{
-        maxWidth: 1200,
-        margin: "0 auto",
-        padding: "24px",
-        fontFamily: "Segoe UI, Tahoma, Geneva, Verdana, sans-serif",
-      }}
-    >
+    <main style={{ maxWidth: 1200, margin: "0 auto", padding: "24px" }}>
       <h1
         style={{
           fontSize: "2.25rem",
@@ -136,7 +157,12 @@ export default function VideoPage() {
         </select>
       </div>
 
-      {filteredVideos.length === 0 ? (
+      {/* ✅ loading 狀態 */}
+      {isLoading ? (
+        <p style={{ textAlign: "center", color: "#555", fontSize: "1.25rem" }}>
+          載入中...
+        </p>
+      ) : filteredVideos.length === 0 ? (
         <p
           style={{
             textAlign: "center",
@@ -240,7 +266,7 @@ export default function VideoPage() {
                   )}
 
                   <button
-                    onClick={() => setShowUrlId(isShowing ? null : video.$id)}
+                    onClick={() => setShowUrlId(isShowing ? null : video.$id)} // ✅ 只顯示一個
                     style={{
                       backgroundColor: isShowing ? "#dc2626" : "#4f46e5",
                       color: "white",
@@ -268,6 +294,7 @@ export default function VideoPage() {
 
                 {isShowing && video.url && (
                   <video
+                    ref={(el) => (videoRefs.current[video.$id] = el)}
                     src={video.url}
                     controls
                     style={{
