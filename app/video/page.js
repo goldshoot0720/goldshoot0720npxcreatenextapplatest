@@ -1,78 +1,101 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
-import "plyr/dist/plyr.css";
+
+import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
-const Plyr = dynamic(() => import("plyr"), { ssr: false });
+import "plyr/dist/plyr.css";
+
+// ⚠️ 使用 dynamic 並禁用 SSR，避免 hydration 錯誤
+// PlyrPlayer 元件本身依賴瀏覽器 API，必須禁用 SSR。
+const PlyrPlayer = dynamic(() => import("../components/PlyrPlayer"), {
+  ssr: false,
+});
+
 export default function VideoPage() {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 
+  // --- 狀態管理 ---
   const [videos, setVideos] = useState([]);
   const [filteredVideos, setFilteredVideos] = useState([]);
+  const [isLoading, setIsLoading] = useState(true); // 新增：用於追蹤資料載入狀態
+  const [hasMounted, setHasMounted] = useState(false); // 新增：用於確保僅在客戶端渲染
+
+  // 篩選器狀態
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
   const [seasonFilter, setSeasonFilter] = useState("");
-  const [showUrlId, setShowUrlId] = useState(null);
-  const [isLoading, setIsLoading] = useState(true); // ✅ loading 狀態
+  const [showUrlId, setShowUrlId] = useState(null); // 控制哪個影片的播放器被顯示
 
-  const videoRefs = useRef({});
+  // --- 生命週期 Effect ---
 
+  // 1. 標記元件已在客戶端掛載
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  // 2. 從 API 獲取影片資料
   useEffect(() => {
     const fetchVideos = async () => {
-      setIsLoading(true); // 開始載入
       try {
         const res = await fetch(`${baseUrl}/api/video`, { cache: "no-store" });
+        if (!res.ok) {
+          throw new Error("Failed to fetch videos");
+        }
         const data = await res.json();
         setVideos(data);
         setFilteredVideos(data);
-      } catch (err) {
-        console.error("載入影片失敗：", err);
+      } catch (error) {
+        console.error(error);
+        // 在此可以設置錯誤狀態來顯示錯誤訊息
       } finally {
-        setIsLoading(false); // 完成載入
+        setIsLoading(false); // 無論成功或失敗，都結束載入狀態
       }
     };
-    fetchVideos();
-  }, []);
 
+    fetchVideos();
+  }, [baseUrl]);
+
+  // 3. 根據篩選條件更新顯示的影片
   useEffect(() => {
     const filtered = videos.filter((video) => {
       const matchesSearch =
         search === "" ||
         video.name.toLowerCase().includes(search.toLowerCase()) ||
         video.song.toLowerCase().includes(search.toLowerCase());
+
       const matchesType = typeFilter === "" || video.type.includes(typeFilter);
       const matchesYear =
         yearFilter === "" || video.year === parseInt(yearFilter);
       const matchesSeason =
         seasonFilter === "" || video.season === seasonFilter;
+
       return matchesSearch && matchesType && matchesYear && matchesSeason;
     });
     setFilteredVideos(filtered);
   }, [search, typeFilter, yearFilter, seasonFilter, videos]);
 
-  // 初始化 Plyr
-  useEffect(() => {
-    const el = videoRefs.current[showUrlId];
-    if (showUrlId && el) {
-      const timeout = setTimeout(() => {
-        try {
-          new Plyr(el, {
-            controls: ["play", "progress", "mute", "volume", "fullscreen"],
-          });
-        } catch (err) {
-          console.error("Plyr 初始化失敗:", err);
-        }
-      }, 0);
-      return () => clearTimeout(timeout);
-    }
-  }, [showUrlId]);
+  // --- 渲染邏輯 ---
+
+  // 在元件掛載到客戶端之前，不渲染任何動態內容，以避免 Hydration 錯誤
+  if (!hasMounted) {
+    // 伺服器端和客戶端首次渲染時都會執行到這裡，返回 null 或一個靜態的骨架屏 (Skeleton)
+    // 這樣可以確保兩端渲染的 HTML 完全一致。
+    return null;
+  }
 
   return (
-    <main style={{ maxWidth: 1200, margin: "0 auto", padding: "24px" }}>
+    <main
+      style={{
+        maxWidth: 1200,
+        margin: "0 auto",
+        padding: "24px",
+        fontFamily: "sans-serif",
+      }}
+    >
       <h1
         style={{
-          fontSize: "2.25rem",
-          fontWeight: "700",
+          fontSize: "2rem",
+          fontWeight: 700,
           textAlign: "center",
           marginBottom: "2rem",
         }}
@@ -80,6 +103,7 @@ export default function VideoPage() {
         🎬 影片清單
       </h1>
 
+      {/* 篩選器 */}
       <div
         style={{
           display: "grid",
@@ -98,8 +122,6 @@ export default function VideoPage() {
             borderRadius: "6px",
             border: "1px solid #ccc",
             fontSize: "1rem",
-            width: "100%",
-            boxSizing: "border-box",
           }}
         />
         <select
@@ -109,9 +131,6 @@ export default function VideoPage() {
             padding: "8px",
             borderRadius: "6px",
             border: "1px solid #ccc",
-            fontSize: "1rem",
-            width: "100%",
-            boxSizing: "border-box",
           }}
         >
           <option value="">所有類型</option>
@@ -125,17 +144,16 @@ export default function VideoPage() {
             padding: "8px",
             borderRadius: "6px",
             border: "1px solid #ccc",
-            fontSize: "1rem",
-            width: "100%",
-            boxSizing: "border-box",
           }}
         >
           <option value="">所有年份</option>
-          {[...new Set(videos.map((v) => v.year))].map((year) => (
-            <option key={year} value={year}>
-              {year}
-            </option>
-          ))}
+          {[...new Set(videos.map((v) => v.year))]
+            .sort((a, b) => b - a)
+            .map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
         </select>
         <select
           value={seasonFilter}
@@ -144,9 +162,6 @@ export default function VideoPage() {
             padding: "8px",
             borderRadius: "6px",
             border: "1px solid #ccc",
-            fontSize: "1rem",
-            width: "100%",
-            boxSizing: "border-box",
           }}
         >
           <option value="">所有季度</option>
@@ -157,20 +172,11 @@ export default function VideoPage() {
         </select>
       </div>
 
-      {/* ✅ loading 狀態 */}
+      {/* 內容清單 */}
       {isLoading ? (
-        <p style={{ textAlign: "center", color: "#555", fontSize: "1.25rem" }}>
-          載入中...
-        </p>
+        <p style={{ textAlign: "center", padding: "2rem" }}>載入中...</p>
       ) : filteredVideos.length === 0 ? (
-        <p
-          style={{
-            textAlign: "center",
-            fontStyle: "italic",
-            color: "#999",
-            fontSize: "1.125rem",
-          }}
-        >
+        <p style={{ textAlign: "center", fontStyle: "italic", color: "#888" }}>
           目前沒有符合條件的影片
         </p>
       ) : (
@@ -187,21 +193,13 @@ export default function VideoPage() {
               <article
                 key={video.$id}
                 style={{
-                  border: "1px solid #e5e7eb",
+                  border: "1px solid #eee",
                   borderRadius: "12px",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
                   padding: "1rem",
                   backgroundColor: "#fff",
-                  display: "flex",
-                  flexDirection: "column",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
                   transition: "transform 0.2s",
                 }}
-                onMouseOver={(e) =>
-                  (e.currentTarget.style.transform = "scale(1.02)")
-                }
-                onMouseOut={(e) =>
-                  (e.currentTarget.style.transform = "scale(1)")
-                }
               >
                 <img
                   src={video.img}
@@ -214,31 +212,19 @@ export default function VideoPage() {
                     marginBottom: "1rem",
                   }}
                 />
-                <h2
-                  style={{
-                    fontSize: "1.125rem",
-                    fontWeight: "600",
-                    marginBottom: "0.5rem",
-                  }}
-                >
+                <h2 style={{ fontSize: "1.125rem", fontWeight: "600" }}>
                   {video.name}
                 </h2>
-                <p style={{ marginBottom: "0.25rem", color: "#555" }}>
+                <p>
                   🎵 {video.song} - {video.type}
                 </p>
-                <p
-                  style={{
-                    fontSize: "0.875rem",
-                    color: "#777",
-                    marginBottom: "1rem",
-                  }}
-                >
+                <p>
                   📅 {video.season} / {video.year}
                 </p>
 
                 <div
                   style={{
-                    marginTop: "auto",
+                    marginTop: "1rem",
                     display: "flex",
                     gap: "0.75rem",
                     flexWrap: "wrap",
@@ -249,7 +235,7 @@ export default function VideoPage() {
                       href={video.watch}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: "#2563eb", textDecoration: "underline" }}
+                      style={{ color: "#2563eb" }}
                     >
                       🌐 觀看
                     </a>
@@ -259,51 +245,32 @@ export default function VideoPage() {
                       href={video.youtube}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: "#dc2626", textDecoration: "underline" }}
+                      style={{ color: "#dc2626" }}
                     >
                       ▶ YouTube
                     </a>
                   )}
-
                   <button
-                    onClick={() => setShowUrlId(isShowing ? null : video.$id)} // ✅ 只顯示一個
+                    onClick={() => setShowUrlId(isShowing ? null : video.$id)}
                     style={{
                       backgroundColor: isShowing ? "#dc2626" : "#4f46e5",
-                      color: "white",
+                      color: "#fff",
                       border: "none",
                       padding: "0.5rem 1rem",
-                      borderRadius: "8px",
-                      fontSize: "1rem",
+                      borderRadius: "6px",
                       cursor: "pointer",
-                      transition: "background-color 0.2s",
                     }}
-                    onMouseOver={(e) =>
-                      (e.currentTarget.style.backgroundColor = isShowing
-                        ? "#b91c1c"
-                        : "#4338ca")
-                    }
-                    onMouseOut={(e) =>
-                      (e.currentTarget.style.backgroundColor = isShowing
-                        ? "#dc2626"
-                        : "#4f46e5")
-                    }
                   >
-                    {isShowing ? "🔒 隱藏內嵌影片" : "🎥 顯示內嵌影片"}
+                    {isShowing ? "🔒 隱藏影片" : "🎥 顯示影片"}
                   </button>
                 </div>
 
-                {isShowing && video.url && (
-                  <video
-                    ref={(el) => (videoRefs.current[video.$id] = el)}
-                    src={video.url}
-                    controls
-                    style={{
-                      width: "100%",
-                      maxHeight: "180px",
-                      borderRadius: "6px",
-                      marginTop: "1rem",
-                    }}
-                  />
+                {/* PlyrPlayer 已經被 dynamic import 且 ssr:false，
+                    這裡的 isShowing 判斷確保了它只在被點擊時渲染 */}
+                {isShowing && video.url?.startsWith("http") && (
+                  <div style={{ marginTop: "1rem" }}>
+                    <PlyrPlayer src={video.url} />
+                  </div>
                 )}
               </article>
             );
